@@ -1,0 +1,88 @@
+== What alogger.py is:
+
+This is the Python code we use to log information about the (file) types
+of MIME attachments that pass through our Exim-based mail system. It has
+to be run from inside an Exim configuration that's set up to invoke it
+with the correct magic options and parameters.
+
+(Specifically this is Python 2 code, not Python 3.)
+
+For information on our Exim configuration stanza to invoke this
+program, see:
+
+  https://utcc.utoronto.ca/~cks/space/blog/sysadmin/EximOurAttachmentLogging
+
+(See also the links in that entry for a further discussion about various
+issues involved.)
+
+For background on why you might want to do this, see:
+
+  https://utcc.utoronto.ca/~cks/space/blog/spam/KnowingAttachmentTypes
+
+A certain amount of the processing and logging the program does is
+based on local knowledge of how our mail system behaves; see --subject
+and --csdnsbl. These are unlikely to be applicable to your environment.
+
+The program produces no logs or output by default. You need to supply one
+or more of -S and -L in order to have it do anything useful. Which one(s)
+you should use depends on how you want to log information and what else
+you want to do with the attachment information.
+
+This program relies on the rarfile module to parse .RAR files:
+  https://pypi.python.org/pypi/rarfile/
+
+You have four options. The program will still work if it doesn't find
+rarfile; you can install your OS distribution's packaging of rarfile
+(if any); you can install rarfile directly from pypi; or you can extract
+rarfile.py and just drop it into a directory besides the program.
+
+It's not clear to me (Chris Siebenmann) what the rarfile package needs
+an unrar program for. At the moment, all we do with RAR files is get a
+directory index; if this is always handled in pure Python in rarfile, you
+don't need an unrar program at all and are probably better off without it.
+
+Author:	Chris Siebenmann
+	July 25 2016
+
+	https://github.com/siebenmann/
+	https://utcc.utoronto.ca/~cks/space/blog/
+	https://twitter.com/thatcks/
+	(and elsewhere)
+
+Copyright: GPL v3
+
+== Performance considerations
+
+You're running a Python program on every somewhat interesting MIME part,
+and that program is going to do a certain amount of parsing of things like
+ZIP files in pure Python. Python is not the fastest or most memory efficient
+programming language.
+
+This program has no visible impact in our modest environment (with typical
+volumes in the range of 10,000 to 20,000 inbound messages a day), but
+things may be different in a (much) more active environment.
+
+== SECURITY CONSIDERATIONS
+
+The attachment logger itself is written in pure Python and so should
+be reasonably secure against buffer overruns and other obvious issues.
+If you're a sufficiently cautious person you should have a number of
+concerns:
+
+* scanning RAR files may require running unrar against them under
+  circumstances that aren't clear to me. Unrar is an external C
+  program and may have exploitable bugs if it's handed sufficiently
+  perverse RAR files.
+
+* the all-Python processing of ZIP and .tar files is unlikely to
+  have been hardened against archives that are deliberately designed as
+  denial of service attacks, for example by expanding to huge sizes.
+  Note that it's possible to do some really perverse things with ZIP
+  files; see http://research.swtch.com/zip.
+
+Our program does not recurse endlessly into ZIP files, but it does go
+one level down (looking inside ZIP files that are inside ZIP files).
+
+These things haven't been an issue for us so far, but cautious people
+should run attachment logging in such a way as to confine at least its
+runtime and memory usage.
