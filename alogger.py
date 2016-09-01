@@ -121,7 +121,7 @@ def get_ext(fname):
 
     # Extend the selection of the extension to two components if the
     # last component appears to just be a compression marker, eg '.gz'.
-    if sl[-1] in ('xz', 'gz', 'z') and len(sl) >= 3:
+    if sl[-1] in ('xz', 'gz', 'z', '7z') and len(sl) >= 3:
         return '.' + sl[-2] + '.' + sl[-1]
     else:
         return '.' + sl[-1]
