@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Log information about attachments received in email messages.
 # Arguments are:
@@ -24,7 +24,7 @@
 # filenames to inline content, etc etc. See
 #
 import sys, zipfile, tarfile, os.path, syslog, argparse
-import cStringIO
+import io
 
 hasrar = False
 try:
@@ -146,17 +146,21 @@ def is_rar(fname):
 # This can use some memory if people are nasty, since we read
 # the entire inner zipfile into bytes and then recycle that into
 # a file object, but memory is probably cheap.
+#
+# Returns a (filenames, error-string) tuple.
 def inner_zipfile(fname, innername):
     flist = []
     with zipfile.ZipFile(fname, "r") as zf:
         try:
             byts = zf.read(innername)
-            si = cStringIO.StringIO(byts)
+            si = io.BytesIO(byts)
             with zipfile.ZipFile(si, "r") as zf2:
                 flist = zf2.namelist()
-        except zipfile.BadZipfile:
-            pass
-    return flist
+        except zipfile.BadZipfile as e:
+            return ([], "bad zipfile (%s)" % e)
+        except UnicodeDecodeError:
+            return ([], "bad zip filenames (unicode decode error)")
+    return (flist, "")
 
 def zipfile_extlist(fname):
     with zipfile.ZipFile(fname, "r") as zf:
@@ -164,6 +168,8 @@ def zipfile_extlist(fname):
             flist = zf.namelist()
         except zipfile.BadZipfile as e:
             return "bad zip file: %s" % str(e)
+        except UnicodeDecodeError:
+            return "bad zip filenames (unicode decode error)"
     res = ["zip " + process_flist(flist), ]
     # Go through the file list and try to list the contents of any
     # nested .zip files (ie a .zip inside a top-level .zip),
@@ -176,8 +182,10 @@ def zipfile_extlist(fname):
     # samples with this.
     for fn in flist:
         if fn.lower().endswith(".zip") or fn.lower().endswith(".jar"):
-            ifl = inner_zipfile(fname, fn)
-            if ifl:
+            ifl, error = inner_zipfile(fname, fn)
+            if error:
+                res.append("inner zip error: "+error)
+            else:
                 res.append("inner zip " + process_flist(ifl))
     return "; ".join(res)
 
@@ -262,16 +270,14 @@ def cslab_info(opts):
 # (The likely circumstance is when a ZIP file has filenames in Unicode,
 # which relentlessly forces everything upwards to Unicode strings.)
 def deuni(msg):
-    if isinstance(msg, unicode):
-        return msg.encode("ascii", errors="backslashreplace")
-    else:
-        return msg
+    return msg.encode("ascii", errors="backslashreplace")
 
 def logit_stdout(msg):
-    sys.stdout.write("%s\n" % msg)
+    sys.stdout.write("%s\n" % msg.decode())
 
 def quotestr(msg):
-    return repr(msg)[1:-1]
+    # in python 3, bytestrings are b'...'.
+    return repr(msg)[2:-1]
 def logit_syslog(msg):
     syslog.openlog("attachment-logger", syslog.LOG_PID, syslog.LOG_MAIL)
     syslog.syslog(syslog.LOG_INFO, quotestr(msg))
