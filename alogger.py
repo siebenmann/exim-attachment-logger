@@ -104,15 +104,27 @@ def is_interesting_attachment(ctype, cdisp, mfname):
 # -----
 
 # Given a filename, return a lower-cased extension or '' if it has
-# none.
+# none. The extension starts with a '.', and it may include multiple
+# components if the first extension is, eg, '.gz'; this way we report
+# '.tar.gz' instead of just '.gz'.
 def get_ext(fname):
     fname = fname.lower()
     bn = os.path.basename(fname)
-    epos = bn.rfind(".")
-    if epos == -1 or epos == 0:
+    sl = bn.split('.')
+    # if there's no '.' or the only '.' is at the start (ie, a dotfile),
+    # we're done.
+    if len(sl) < 2 or (len(sl) == 2 and sl[0] == ''):
         return ''
+    # ends with a '.'? We report that specially and punt.
+    if sl[-1] == '':
+        return 'DOT-AT-END'
+
+    # Extend the selection of the extension to two components if the
+    # last component appears to just be a compression marker, eg '.gz'.
+    if sl[-1] in ('xz', 'gz', 'z') and len(sl) >= 3:
+        return '.' + sl[-2] + '.' + sl[-1]
     else:
-        return bn[epos:]
+        return '.' + sl[-1]
 
 # Is this a ZIP file?
 def is_zip(fname):
