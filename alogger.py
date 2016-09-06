@@ -23,7 +23,7 @@
 # everything as 'content-disposition: inline', some of them attach MIME
 # filenames to inline content, etc etc. See
 #
-import sys, zipfile, tarfile, os.path, syslog, argparse
+import sys, zipfile, tarfile, os.path, syslog, argparse, traceback
 import io
 
 hasrar = False
@@ -362,7 +362,23 @@ def setup():
 def main():
     p = setup()
     opts = p.parse_args()
-    process(opts)
+    try:
+        process(opts)
+    except:
+        if opts.syslog == True:
+            syslog.openlog("attachment-logger", syslog.LOG_PID, syslog.LOG_MAIL)
+            (ty, inf, trc) = sys.exc_info()
+            syslog.syslog("ERROR: Python exception on message: %s" % opts.eximid)
+            for e in traceback.format_exception(ty, inf, trc):
+                lines = str(e).split("\n")
+                for l in lines:
+                    l2 = l.strip()
+                    if not l2:
+                        continue
+                    syslog.syslog("T: %s" % l)
+            syslog.syslog("T: (end)")
+        else:
+            raise
 
 if __name__ == "__main__":
     main()
