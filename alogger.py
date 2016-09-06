@@ -152,7 +152,14 @@ def inner_zipfile(fname, innername):
     flist = []
     with zipfile.ZipFile(fname, "r") as zf:
         try:
-            byts = zf.read(innername)
+            try:
+                byts = zf.read(innername)
+            except (RuntimeError, NotImplementedError) as e:
+                # Invalid password. Yes, really. This is what gets
+                # thrown by the zipfile module. My anger is palpable.
+                # It is extremely tempting to make our own copy and fix
+                # this. NIE is raised for various zip archive flags, too.
+                return ([], "encrypted zipfile? (%s)" % e)
             si = io.BytesIO(byts)
             with zipfile.ZipFile(si, "r") as zf2:
                 flist = zf2.namelist()
