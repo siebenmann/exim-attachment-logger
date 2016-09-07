@@ -268,27 +268,41 @@ def cslab_info(opts):
     
 # -----
 
-# We may be called with Unicode message strings under some circumstances.
-# In this case we 'encode' everything to ASCII with out of range characters
-# replaced with backslashed escape sequences.
-# (See the docs for the standard library codecs package for what
-# standard error handlers are available.)
+# In Python 3, all of our strings are Unicode and may contain both
+# control characters and non-ASCII characters. How these are handled
+# by either sys.stdout or syslog.syslog() is uncertain, so we take
+# the brute force approach: we coerce everything to backslash-escaped
+# ASCII, with control characters encoded as "\xNN". We must do this in
+# two steps; encoding control characters, and then encoding Unicode.
 #
-# (The likely circumstance is when a ZIP file has filenames in Unicode,
-# which relentlessly forces everything upwards to Unicode strings.)
+# Since it is more convenient for callers, we return a (Unicode)
+# string, not a byte(string).
+ctrldict = {c: "\\x%02x" % c for c in range(0,32)}
+ctrldict[127] = "\\x7f"
+# A few special characters get special escapes
+ctrldict[ord("\n")] = "\\n"; ctrldict[ord("\r")] = "\\r";
+ctrldict[ord("\t")] = "\\t"
+ctrldict[ord("\\")] = "\\\\"
 def deuni(msg):
-    return msg.encode("ascii", errors="backslashreplace")
+    dctrl = msg.translate(ctrldict)
+    asc = dctrl.encode("ascii", errors="backslashreplace")
+    return asc.decode("ascii")
 
+#
+# Our message strings for logging have gone through deuni() and so
+# should be completely safe to write to things that need to encode
+# them.
+#
+# (These are famous last words.)
 def logit_stdout(msg):
-    sys.stdout.write("%s\n" % msg.decode())
+    sys.stdout.write("%s\n" % msg)
 
-def quotestr(msg):
-    # in python 3, bytestrings are b'...'.
-    return repr(msg)[2:-1]
 def logit_syslog(msg):
     syslog.openlog("attachment-logger", syslog.LOG_PID, syslog.LOG_MAIL)
-    syslog.syslog(syslog.LOG_INFO, quotestr(msg))
+    syslog.syslog(syslog.LOG_INFO, msg)
 
+#
+#
 def process(opts):
     eximid = opts.eximid
     ctype = opts.ctype.lower()
