@@ -68,6 +68,7 @@ sexts = ((".pdf", "application/pdf"), (".pdf", "application/octet-stream"),
 # content-dispositions of 'inline'. As a result we look for various
 # indications that things will not be displayed inline.
 #
+no_c_disp = "<unknown>"
 def is_interesting_attachment(ctype, cdisp, mfname):
     mfext = get_ext(mfname)
     # Anything that claims to be a .zip is automatically interesting
@@ -78,7 +79,14 @@ def is_interesting_attachment(ctype, cdisp, mfname):
     # NOPE: Our decision is 'log everything, we can sort it out later'.
     #if cdisp == "attachment" and (mfext, ctype) in sexts:
     #   return False
-    if cdisp != "inline":
+
+    # A missing content-disposition may be the main body of a non
+    # multipart message or a multipart part with no C-D header.
+    # Both happen and we sadly can't tell them apart right now.
+    # For now we consider this to be a form of 'inline' and thus
+    # not automatically interesting by itself. Attachments without
+    # a C-D will hopefully have an interesting MIME type.
+    if cdisp not in ("inline", no_c_disp):
         # Anything that declares itself non-inline is interesting
         return True
 
@@ -309,10 +317,17 @@ def process(opts):
     cdisp = opts.cdisp.lower()
     mfname = opts.mfname
     fname = opts.fname
-    # empty content-disposition means that this is the main body (!!)
-    # must screen this out soon.
+
+    # An empty content-disposition can mean one of two things:
+    # either it's the main body of a non-multipart message, or
+    # some joker sent us a MIME attachment *without* a C-D
+    # (which malware does). In either case, we'd better process
+    # anything suspicious; after all, people can directly send
+    # ZIP files or the like.
+    # We rewrite the blank C-D value to a standard value so that
+    # our log messages and so on are clear(er).
     if cdisp == '':
-        return
+        cdisp = no_c_disp
     if not is_interesting_attachment(ctype, cdisp, mfname):
         return
 
