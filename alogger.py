@@ -90,6 +90,12 @@ def is_interesting_attachment(ctype, cdisp, mfname):
         # Anything that declares itself non-inline is interesting
         return True
 
+    # If the content-type is blank, this is automatically interesting.
+    # According to the Exim documentation this happens if the part
+    # supplies no Content-Type.
+    if ctype == "":
+        return True
+
     # The MIME part is declared as 'inline', but this may be the MUA
     # being generic. We look at a prefix of the content-type to see
     # if it's definitely something we want to check.
@@ -339,6 +345,11 @@ def process(opts):
         extra = tarfile_extlist(fname)
     elif is_rar(fname):
             extra = rarfile_extlist(fname)
+
+    # Fix a blank content-type (ie, the part supplied no Content-Type
+    # header).
+    if ctype == "":
+        ctype = "<missing>"
 
     # For now all content-types are interesting to report. We
     # may try to reduce the noise if the C-T matches the
