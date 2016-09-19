@@ -184,13 +184,13 @@ def inner_zipfile(fname, innername):
     return (flist, "")
 
 def zipfile_extlist(fname):
-    with zipfile.ZipFile(fname, "r") as zf:
-        try:
+    try:
+        with zipfile.ZipFile(fname, "r") as zf:
             flist = zf.namelist()
-        except zipfile.BadZipfile as e:
-            return "bad zip file: %s" % str(e)
-        except UnicodeDecodeError:
-            return "bad zip filenames (unicode decode error)"
+    except zipfile.BadZipfile as e:
+        return "bad zip file: %s" % str(e)
+    except UnicodeDecodeError:
+        return "bad zip filenames (unicode decode error)"
     res = ["zip " + process_flist(flist), ]
     # Go through the file list and try to list the contents of any
     # nested .zip files (ie a .zip inside a top-level .zip),
