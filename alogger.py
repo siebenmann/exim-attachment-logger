@@ -122,6 +122,20 @@ def is_interesting_attachment(ctype, cdisp, mfname):
 # components if the first extension is, eg, '.gz'; this way we report
 # '.tar.gz' instead of just '.gz'.
 def get_ext(fname):
+    # In theory ZIP filenames are stored in a length-counted field
+    # with no terminator. In practice, apparently some viruses play
+    # silly games with sticking null bytes into the ZIP file names and
+    # as a result the zipfile module explicitly truncates filenames at
+    # the first null byte. When the null byte is the first byte, we
+    # get a 0-length name.
+    #
+    # If we really wanted to, we could fish out the original name
+    # as .orig_filename on the ZipInfo structures. We'd have to
+    # call .infolist() and process the results instead of just calling
+    # .namelist(). We may do this at some point.
+    if len(fname) == 0:
+        return "no-fname"
+
     fname = fname.lower()
     bn = os.path.basename(fname)
     sl = bn.split('.')
@@ -233,7 +247,8 @@ def rarfile_extlist(fname):
 def process_flist(flist):
     extl = {}
     for fn in flist:
-        if fn[-1] == '/':
+        if len(fn) > 0 and fn[-1] == '/':
+            # skip directories.
             continue
         ext = get_ext(fn)
         if ext == '':
