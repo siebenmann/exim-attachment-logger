@@ -33,6 +33,13 @@ try:
 except ImportError:
     pass
 
+hasfile = False
+try:
+    import magic
+    hasfile = True
+except ImportError:
+    pass
+
 def die(msg):
     sys.stderr.write("alogger: %s\n" % msg)
     sys.exit(1)
@@ -154,6 +161,19 @@ def get_ext(fname):
     else:
         return '.' + sl[-1]
 
+def getmagic(fname):
+    if not hasfile or not fname:
+        return ""
+    m = magic.open(magic.MIME_TYPE | magic.COMPRESS)
+    if not m:
+        return ""
+    if m.load() != 0:
+        return ""
+    r = m.file(fname)
+    if r is None:
+        return ""
+    return r
+
 # Is this a ZIP file?
 def is_zip(fname):
     if not fname:
@@ -271,13 +291,34 @@ def process_flist(flist):
 # We probably want to defer this until alkyone and mailswitch are
 # 16.04 machines so we can use the Ubuntu-packaged rarfile package.
 
-def extra_info(fname):
-    if not fname:
+# Use libmagic via the magic module to determine extra file type
+# information. If this file type information is identical to the
+# content-type, we don't bother reporting it.
+def extra_file_info(filename, ctype):
+    r = getmagic(filename)
+    if r and r != ctype:
+        return "file magic: "+r
+    else:
         return ""
+
+def extra_info(fname, filename, ctype):
+    if not fname:
+        return extra_file_info(filename, ctype)
     r = get_ext(fname)
     if not r:
-        return ""
-    return "MIME file ext: "+r
+        return extra_file_info(filename, ctype)
+
+    msg = "MIME file ext: "+r
+    # Include libmagic information if all the file extension information
+    # we have is a compression type.
+    # TODO: messy, should be in one spot, not here + get_ext().
+    # NOTE: does not include .7z, because it turns out libmagic can't
+    # report anything useful about them.
+    if r in (".gz", ".xz", ".z"):
+        r2 = extra_file_info(filename, ctype)
+        if r2:
+            msg += "; "+r2
+    return msg
 
 # ----
 def cslab_info(opts):
@@ -352,7 +393,7 @@ def process(opts):
     if not is_interesting_attachment(ctype, cdisp, mfname):
         return
 
-    fninfo = extra_info(mfname.lower())
+    fninfo = extra_info(mfname.lower(), fname, ctype)
     extra = ''
     if is_zip(fname):
         extra = zipfile_extlist(fname)
