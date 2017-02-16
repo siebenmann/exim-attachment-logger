@@ -400,7 +400,7 @@ def process(opts):
     elif is_tar(fname):
         extra = tarfile_extlist(fname)
     elif is_rar(fname):
-            extra = rarfile_extlist(fname)
+        extra = rarfile_extlist(fname)
 
     # Fix a blank content-type (ie, the part supplied no Content-Type
     # header).
