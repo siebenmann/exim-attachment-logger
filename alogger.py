@@ -314,7 +314,11 @@ def extra_info(fname, filename, ctype):
     # TODO: messy, should be in one spot, not here + get_ext().
     # NOTE: does not include .7z, because it turns out libmagic can't
     # report anything useful about them.
-    if r in (".gz", ".xz", ".z"):
+    #
+    # ALSO: if we have a file that claims to be a .zip but that is_zip()
+    # doesn't think is one, we report what extra info we can get.
+    if r in (".gz", ".xz", ".z") or \
+       (r == '.zip' and not is_zip(filename)):
         r2 = extra_file_info(filename, ctype)
         if r2:
             msg += "; "+r2
