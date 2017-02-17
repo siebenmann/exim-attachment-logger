@@ -301,6 +301,32 @@ def extra_file_info(filename, ctype):
     else:
         return ""
 
+# Include libmagic information if all the file extension information
+# we have is a compression type.
+# TODO: messy, should be in one spot, not here + get_ext().
+# NOTE: does not include .7z, because it turns out libmagic can't
+# report anything useful about them.
+#
+# ALSO: if we have a file that claims to be a .zip but that is_zip()
+# doesn't think is one, we report what extra info we can get.
+def sniff_extra(ext, filename):
+    # We must check for the extension ending with a compression type,
+    # not just being one, because if the file name is 'blah.fred.gz'
+    # get_ext() will return the extension as '.fred.gz'.
+    for i in (".gz", ".xz", ".z"):
+        if ext.endswith(i):
+            return True
+    # We could extend this check for other archive types, but I'm
+    # not doing that until we have a need for it.
+    if ext == ".zip" and not is_zip(filename):
+        return True
+    return False
+
+# Generate MIME filename extension information plus information sniffed
+# from using libmagic. If there's no filename extension, we always sniff.
+# If there is an extension, we sniff in cases where it may give us
+# additional information, like compressed files that libmagic can deal
+# with or .zips that aren't actually ZIP archives.
 def extra_info(fname, filename, ctype):
     if not fname:
         return extra_file_info(filename, ctype)
@@ -309,16 +335,8 @@ def extra_info(fname, filename, ctype):
         return extra_file_info(filename, ctype)
 
     msg = "MIME file ext: "+r
-    # Include libmagic information if all the file extension information
-    # we have is a compression type.
-    # TODO: messy, should be in one spot, not here + get_ext().
-    # NOTE: does not include .7z, because it turns out libmagic can't
-    # report anything useful about them.
-    #
-    # ALSO: if we have a file that claims to be a .zip but that is_zip()
-    # doesn't think is one, we report what extra info we can get.
-    if r in (".gz", ".xz", ".z") or \
-       (r == '.zip' and not is_zip(filename)):
+    # Possibly use libmagic to sniff extra information.
+    if sniff_extra(r, filename):
         r2 = extra_file_info(filename, ctype)
         if r2:
             msg += "; "+r2
