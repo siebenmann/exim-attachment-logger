@@ -310,6 +310,11 @@ def extra_file_info(filename, ctype):
 # ALSO: if we have a file that claims to be a .zip but that is_zip()
 # doesn't think is one, we report what extra info we can get.
 def sniff_extra(ext, filename):
+    # Don't bother redundantly noting that a real .tar.gz is a tar file.
+    if ext in ('.tar.gz', '.tar.xz', '.tar.z') and \
+       is_tar(filename):
+        return False
+
     # We must check for the extension ending with a compression type,
     # not just being one, because if the file name is 'blah.fred.gz'
     # get_ext() will return the extension as '.fred.gz'.
