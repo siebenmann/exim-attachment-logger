@@ -333,7 +333,7 @@ def sniff_extra(ext, filename):
             return True
     # We could extend this check for other archive types, but I'm
     # not doing that until we have a need for it.
-    if ext == ".zip" and not is_zip(filename):
+    if ext in (".jar", ".zip") and not is_zip(filename):
         return True
     return False
 
