@@ -25,6 +25,8 @@
 #
 import sys, zipfile, tarfile, os.path, syslog, argparse, traceback
 import io
+# for errors. sigh.
+import zlib
 
 hasrar = False
 try:
@@ -213,6 +215,8 @@ def inner_zipfile(fname, innername):
                 flist = zf2.namelist()
         except zipfile.BadZipfile as e:
             return ([], "bad zipfile (%s)" % e)
+        except zlib.error as e:
+            return ([], "bad zipfile (zlib error %s)" % e)
         except UnicodeDecodeError:
             return ([], "bad zip filenames (unicode decode error)")
     return (flist, "")
@@ -223,6 +227,12 @@ def zipfile_extlist(fname):
             flist = zf.namelist()
     except zipfile.BadZipfile as e:
         return "bad zip file: %s" % str(e)
+    except zlib.error as e:
+        return "bad zip file: zlib error %s" % str(e)
+    except OSError as e:
+        # Apparently some (broken) zip files can cause the zipfile
+        # module to raise errors by seeking to invalid offsets or something.
+        return "bad zip file (OSError): %s" % str(e)
     except UnicodeDecodeError:
         return "bad zip filenames (unicode decode error)"
     res = ["zip " + process_flist(flist), ]
