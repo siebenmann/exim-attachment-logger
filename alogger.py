@@ -337,6 +337,11 @@ def sniff_extra(ext, filename):
         return True
     if ext == ".rar" and not is_rar(filename):
         return True
+    # Malware appears to be using .ISOs, which we are (mis?) detecting
+    # as empty tar files in our archive processing. Let's find out what
+    # libmagic thinks.
+    if ext == ".iso":
+        return True
     return False
 
 # Generate MIME filename extension information plus information sniffed
