@@ -335,6 +335,8 @@ def sniff_extra(ext, filename):
     # not doing that until we have a need for it.
     if ext in (".jar", ".zip") and not is_zip(filename):
         return True
+    if ext == ".rar" and not is_rar(filename):
+        return True
     return False
 
 # Generate MIME filename extension information plus information sniffed
