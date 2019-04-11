@@ -276,9 +276,11 @@ def rarfile_extlist(fname):
 
 def process_flist(flist):
     extl = {}
+    hasdirs = False
     for fn in flist:
         if len(fn) > 0 and fn[-1] == '/':
             # skip directories.
+            hasdirs = True
             continue
         ext = get_ext(fn)
         if ext == '':
@@ -292,7 +294,10 @@ def process_flist(flist):
         else:
             eres.append("%s[%d]" % (k, v))
     if not eres:
-        return "no files?!"
+        if hasdirs:
+            return "directories only?!"
+        else:
+            return "no files?!"
     eres.sort()
     return "exts: " + " ".join(eres)
 
