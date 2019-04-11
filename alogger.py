@@ -185,7 +185,25 @@ def is_zip(fname):
 def is_tar(fname):
     if not fname:
         return False
-    return tarfile.is_tarfile(fname)
+    #return tarfile.is_tarfile(fname)
+    # It turns out that tarfile.is_tarfile() is very naive and can
+    # be fooled by certain sorts of things. So fake it by hand,
+    # better.
+    try:
+        t = tarfile.open(fname)
+        # We require the first block of the tar file to have actual real
+        # contents. Checking firstmember and/or members is a hack, but
+        # it bypasses issues that tarfile doesn't handle. The one that
+        # I have found is an initial 512-byte block of all zeroes.
+        #
+        # This may be a bug, but if so it's a long-standing one that
+        # is widely spread in Python versions out there in the world.
+        if len(t.members) == 0:
+            return False
+        t.close()
+        return True
+    except tarfile.TarError:
+        return False
 
 def is_rar(fname):
     if not fname or not hasrar:
