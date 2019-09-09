@@ -365,6 +365,10 @@ def sniff_extra(ext, filename):
     # libmagic thinks.
     if ext == ".iso":
         return True
+    # Some things are labeling ISO images as .img. Sniff these to
+    # determine what a .img really is.
+    if ext == ".img":
+        return True
     return False
 
 # Generate MIME filename extension information plus information sniffed
