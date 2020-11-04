@@ -516,6 +516,22 @@ def logit_syslog(msg):
     syslog.openlog("attachment-logger", syslog.LOG_PID, syslog.LOG_MAIL)
     syslog.syslog(syslog.LOG_INFO, msg)
 
+# libarchive uses the logging package to spit things out on standard
+# output/error under some circumstances, which can screw us up. Shut it
+# off.
+#
+# It would be nice if we could divert this to syslog, but it's very
+# difficult to do this because we would probably have to do it before
+# importing libarchive.  In any case, wrestling with the logging package
+# is not on the agenda today.
+def fix_libarchive_logger(opts):
+    if not (hasarchive and opts.syslog):
+        return
+    # This is slightly less messy than fishing inside libarchive.ffi.
+    import logging
+    logger = logging.getLogger('libarchive')
+    logger.setLevel(9999)
+
 #
 #
 def process(opts):
@@ -611,6 +627,7 @@ def setup():
 def main():
     p = setup()
     opts = p.parse_args()
+    fix_libarchive_logger(opts)
     try:
         process(opts)
     except:
