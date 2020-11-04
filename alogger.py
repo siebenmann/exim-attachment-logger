@@ -336,7 +336,15 @@ def read_libarchive(fname, format):
     try:
         with libarchive.read.file_reader(fname, format_name=format) as fp:
             for n in fp:
-                flist.append(n.pathname)
+                # Under some circumstances, libarchive can return None
+                # as the filename here. Exclude these by requiring a
+                # non-blank filename.
+                # The libarchive message was
+                #    "Pathname cannot be converted from UTF-16BE to current locale."
+                # ... and may have been produced on standard output or
+                # standard error, since it was recorded in the Exim log.
+                if n:
+                    flist.append(n.pathname)
     except libarchive.exception.ArchiveError:
         pass
     return "%s %s" % (format, process_flist(flist))
@@ -355,6 +363,13 @@ def process_flist(flist):
     extl = {}
     hasdirs = False
     for fn in flist:
+        # Under some situations we can wind up with a blank filename
+        # or a filename that is not a string (a None). We try to guard
+        # this in the libarchive code above, but we may not always
+        # succeed. We cannot do anything with blank filenames, so we
+        # skip entirely.
+        if fn is None or not fn:
+            continue
         if len(fn) > 0 and fn[-1] == '/':
             # skip directories.
             hasdirs = True
