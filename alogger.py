@@ -42,6 +42,13 @@ try:
 except ImportError:
     pass
 
+hasarchive = False
+try:
+    import libarchive
+    hasarchive = True
+except ImportError:
+    pass
+
 def die(msg):
     sys.stderr.write("alogger: %s\n" % msg)
     sys.exit(1)
@@ -210,6 +217,29 @@ def is_rar(fname):
         return False
     return rarfile.is_rarfile(fname)
 
+# This is a generic 'is it format <X> that's supported by libarchive'
+# checker. It also returns False if there's no filename or we don't
+# have libarchive and the Python bindings to it.
+def is_libarchive(fname, format):
+    if not fname or not hasarchive:
+        return False
+    try:
+        with libarchive.read.file_reader(fname, format_name=format):
+            pass
+        return True
+    except libarchive.exception.ArchiveError:
+        return False
+
+def is_7zip(fname):
+    return is_libarchive(fname, "7zip")
+def is_iso9660(fname):
+    return is_libarchive(fname, "iso9660")
+def is_cab(fname):
+    return is_libarchive(fname, "cab")
+# This is also .lzh, which we see.
+def is_lha(fname):
+    return is_libarchive(fname, "lha")
+
 # Extract the file names from a zip file inside another zip file.
 # This can use some memory if people are nasty, since we read
 # the entire inner zipfile into bytes and then recycle that into
@@ -291,6 +321,29 @@ def rarfile_extlist(fname):
     except rarfile.Error as e:
         return "bad rar file: %s" % str(e)
     return "rar " + process_flist(flist)
+
+# This is a generic 'read filenames from format <X> that's supported
+# by libarchive'. It assumes that we've already passed is_libarchive
+# for the file.
+def read_libarchive(fname, format):
+    flist = []
+    try:
+        with libarchive.read.file_reader(fname, format_name=format) as fp:
+            for n in fp:
+                flist.append(n.pathname)
+    except libarchive.exception.ArchiveError:
+        pass
+    return "%s %s" % (format, process_flist(flist))
+
+def sevenzip_extlist(fname):
+    return read_libarchive(fname, "7zip")
+def iso9660_extlist(fname):
+    return read_libarchive(fname, "iso9660")
+def cab_extlist(fname):
+    return read_libarchive(fname, "cab")
+# This is also .lhz, which we see.
+def lha_extlist(fname):
+    return read_libarchive(fname, "lha")
 
 def process_flist(flist):
     extl = {}
@@ -472,6 +525,14 @@ def process(opts):
         extra = tarfile_extlist(fname)
     elif is_rar(fname):
         extra = rarfile_extlist(fname)
+    elif is_7zip(fname):
+        extra = sevenzip_extlist(fname)
+    elif is_iso9660(fname):
+        extra = iso9660_extlist(fname)
+    elif is_cab(fname):
+        extra = cab_extlist(fname)
+    elif is_lha(fname):
+        extra = lha_extlist(fname)
 
     # Fix a blank content-type (ie, the part supplied no Content-Type
     # header).
