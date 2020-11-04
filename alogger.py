@@ -315,7 +315,13 @@ def tarfile_extlist(fname):
 
 def rarfile_extlist(fname):
     try:
-        rf = rarfile.RarFile(fname)
+        # Some versions of the rarfile package can error out inside
+        # themselves with "ValueError: read length must be positive or
+        # -1" on a 'return self._fd.read(n)'.
+        try:
+            rf = rarfile.RarFile(fname)
+        except ValueError as e:
+            return "bad rar file: %s" % str(e)
         flist = rf.namelist()
         rf.close()
     except rarfile.Error as e:
